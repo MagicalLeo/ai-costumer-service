@@ -1,8 +1,11 @@
+"use client";
 import Navigation from "@/components/home/Navigation";
-import Main from "@/components/home/Main";
+import Main from "@/components/home/Main/Index";
+import { useAppContext } from "@/components/AppContext";
 export default function Home() {
+  const { state:{themeMode} } = useAppContext();
   return (
-    <main className="h-full flex">
+    <main className={`${themeMode} h-full flex`}>
       <Navigation />
       <Main />
     </main>
