@@ -1,38 +1,40 @@
-"use client";
-import { Action, initialState, reducer } from "@/reducers/AppReducers";
+"use client"
+
+import { Action, State, initState, reducer } from "@/reducers/AppReducers"
 import {
-  createContext,
-  Dispatch,
-  ReactNode,
-  useContext,
-  useMemo,
-  useReducer,
-} from "react";
+    Dispatch,
+    ReactNode,
+    createContext,
+    useContext,
+    useMemo,
+    useReducer,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    useState
+} from "react"
 
-type State = {
-  displayNavigation: boolean;
-  themeMode: "dark" | "light";
-};
+type AppContextProps = {
+    state: State
+    dispatch: Dispatch<Action>
+}
 
-type AppContextProbs = {
-  state: State;
-  dispatch: Dispatch<Action>;
-};
-
-const AppContext = createContext<AppContextProbs>(null!);
+const AppContext = createContext<AppContextProps>(null!)
 
 export function useAppContext() {
-  return useContext(AppContext);
+    return useContext(AppContext)
 }
-export default function AppContextProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const [state, dispatch] = useReducer(reducer, initialState);
 
-  const contextValue = useMemo(() => ({ state, dispatch }), [state, dispatch]);
-  return (
-    <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
-  );
+export default function AppContextProvider({
+    children
+}: {
+    children: ReactNode
+}) {
+    const [state, dispatch] = useReducer(reducer, initState)
+    const contextValue = useMemo(() => {
+        return { state, dispatch }
+    }, [state, dispatch])
+    return (
+        <AppContext.Provider value={contextValue}>
+            {children}
+        </AppContext.Provider>
+    )
 }

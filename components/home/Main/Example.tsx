@@ -12,7 +12,7 @@ export default function Exaple() {
     }
   }, [showFull]);
   return (
-    <div className="flex flex-col items-center">
+    <div className="overflow-y-auto flex flex-col items-center">
       <div className="mt-20 mb-4 text-4xl">
         <MdOutlineTipsAndUpdates />
       </div>

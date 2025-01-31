@@ -9,6 +9,12 @@ export default {
   ],
   theme: {
     extend: {
+      colors: {
+        primary: {
+          500: " #0080FF",
+          600: "	#2894FF",
+        },
+      },
     },
   },
   plugins: [],
