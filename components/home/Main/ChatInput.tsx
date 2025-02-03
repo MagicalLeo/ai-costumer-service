@@ -3,7 +3,7 @@ import { MdRefresh } from "react-icons/md";
 import { PiLightningFill, PiStopBold } from "react-icons/pi";
 import { FiSend } from "react-icons/fi";
 import TextareaAutoSize from "react-textarea-autosize";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useAppContext } from "@/components/AppContext";
 import { Message, MessageRequestBody } from "@/types/Chat";
@@ -15,26 +15,46 @@ export default function ChatInput() {
     state: { messageList, streamingId },
     dispatch,
   } = useAppContext();
-
+  const stopRef = useRef(false);
   async function handleSend() {
     const message: Message = {
       id: uuidv4(),
       role: "user",
       content: messageText,
     };
-
+    dispatch({ type: ActionType.ADD_MESSAGE, message });
     const messages = messageList.concat([message]);
     console.log("SENDING MESSAGE...", messageText);
+    send(messages);
+  }
 
-    const body: MessageRequestBody = { messages };
-    dispatch({ type: ActionType.ADD_MESSAGE, message });
+  async function resend() {
+    const messages = [...messageList];
+    if (
+      messages.length !== 0 &&
+      messages[messages.length - 1].role === "assistant"
+    ) {
+      dispatch({
+        type: ActionType.REMOVE_MESSAGE,
+        message: messages[messages.length - 1],
+      });
+      messages.slice(messages.length - 1, 1);
+    }
+    console.log("RESENDING MESSAGE...", messages);
+    send(messages);
+  }
+
+  async function send(message: Message[]) {
+    const body: MessageRequestBody = { messages: message };
     setMessageText("");
+    const controller = new AbortController();
 
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify(body),
     });
     // console.log(response);
@@ -66,6 +86,11 @@ export default function ChatInput() {
     let content = "";
 
     while (!done) {
+      if (stopRef.current) {
+        stopRef.current = false;
+        controller.abort();
+        break;
+      }
       const result = await reader.read();
       done = result.done;
       const chunk = decoder.decode(result.value);
@@ -82,11 +107,23 @@ export default function ChatInput() {
       <div className="w-full max-w-4xl mx-auto flex flex-col items-center px-4 space-y-4">
         {messageList.length !== 0 &&
           (streamingId !== "" ? (
-            <Button icon={PiStopBold} variant="primary" className="font-medium">
+            <Button
+              icon={PiStopBold}
+              variant="primary"
+              className="font-medium bg-red-500 hover:bg-red-600"
+              onClick={() => {
+                stopRef.current = true;
+              }}
+            >
               Stop
             </Button>
           ) : (
-            <Button icon={MdRefresh} variant="primary" className="font-medium">
+            <Button
+              icon={MdRefresh}
+              variant="primary"
+              className="font-medium"
+              onClick={resend}
+            >
               Ask Again
             </Button>
           ))}

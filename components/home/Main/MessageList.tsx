@@ -23,10 +23,10 @@ export default function MessageList() {
                 <div className="text-3xl leading-[1]">
                   {isUser ? "😄" : "🤖"}
                 </div>
-                <div className="flex-1">
-                                    <Markdown>{`${message.content}${
-                                        message.id === streamingId ? "▍" : ""
-                                    }`}</Markdown>
+                <div className="flex-1 overflow-x-auto break-words">
+                  <Markdown>{`${message.content}${
+                    message.id === streamingId ? "▍" : ""
+                  }`}</Markdown>
                 </div>
               </div>
             </li>

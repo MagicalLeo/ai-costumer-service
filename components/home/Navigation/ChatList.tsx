@@ -77,7 +77,7 @@ export default function ChatList() {
         },
         {
             id: "15",
-            title: "知行小课",
+            title: "你好",
             updateTime: Date.now() + 2
         }
     ])
