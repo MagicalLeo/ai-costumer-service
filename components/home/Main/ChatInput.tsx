@@ -3,25 +3,86 @@ import { MdRefresh } from "react-icons/md";
 import { PiLightningFill, PiStopBold } from "react-icons/pi";
 import { FiSend } from "react-icons/fi";
 import TextareaAutoSize from "react-textarea-autosize";
-import { useRef, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { useEffect, useRef, useState } from "react";
 import { useAppContext } from "@/components/AppContext";
 import { Message, MessageRequestBody } from "@/types/Chat";
 import { ActionType } from "@/reducers/AppReducers";
+import { useEventBusContext } from "@/components/EventBusContext";
 
 export default function ChatInput() {
   const [messageText, setMessageText] = useState("");
   const {
-    state: { messageList, streamingId },
+    state: { messageList, streamingId, selectedChat },
     dispatch,
   } = useAppContext();
+  const { publish } = useEventBusContext();
   const stopRef = useRef(false);
+  const chatIdRef = useRef("");
+
+  useEffect(() => {
+    if (chatIdRef.current === selectedChat?.id) {
+      return;
+    }
+    chatIdRef.current = selectedChat?.id ?? "";
+    stopRef.current = false;
+  }, [selectedChat]);
+
+  async function createOrUpdateMessage(message: Message) {
+    const response = await fetch("/api/message/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(message),
+    });
+    // console.log(response);
+
+    if (!response.ok) {
+      console.log(response.statusText);
+      return;
+    }
+    if (!response.body) {
+      console.log("body error");
+      return;
+    }
+
+    const { data } = await response.json();
+    if (!chatIdRef.current) {
+      chatIdRef.current = data.message.chatId;
+      publish("fetchChatList");
+      dispatch({
+        type: ActionType.UPDATE,
+        field: "selectedChat",
+        value: {id: chatIdRef.current},
+      })
+    }
+    return data.message;
+  }
+
+  async function deleteMessage(id: string) {
+    const response = await fetch(`/api/message/delete?id=${id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      console.log(response.statusText);
+      return;
+    }
+
+    const { code } = await response.json();
+    return code === 0;
+  }
+
   async function handleSend() {
-    const message: Message = {
-      id: uuidv4(),
+    const message = await createOrUpdateMessage({
+      id: "",
       role: "user",
       content: messageText,
-    };
+      chatId: chatIdRef.current,
+    });
     dispatch({ type: ActionType.ADD_MESSAGE, message });
     const messages = messageList.concat([message]);
     console.log("SENDING MESSAGE...", messageText);
@@ -34,6 +95,11 @@ export default function ChatInput() {
       messages.length !== 0 &&
       messages[messages.length - 1].role === "assistant"
     ) {
+      const result = await deleteMessage(messages[messages.length - 1].id);
+      if (!result) {
+        console.log("delete error");
+        return;
+      }
       dispatch({
         type: ActionType.REMOVE_MESSAGE,
         message: messages[messages.length - 1],
@@ -45,6 +111,7 @@ export default function ChatInput() {
   }
 
   async function send(message: Message[]) {
+    stopRef.current = false;
     const body: MessageRequestBody = { messages: message };
     setMessageText("");
     const controller = new AbortController();
@@ -68,11 +135,12 @@ export default function ChatInput() {
       return;
     }
 
-    const responseMessage: Message = {
-      id: uuidv4(),
+    const responseMessage = await createOrUpdateMessage({
+      id: "",
       role: "assistant",
       content: "",
-    };
+      chatId: chatIdRef.current,
+    });
     dispatch({ type: ActionType.ADD_MESSAGE, message: responseMessage });
     dispatch({
       type: ActionType.UPDATE,
@@ -87,7 +155,6 @@ export default function ChatInput() {
 
     while (!done) {
       if (stopRef.current) {
-        stopRef.current = false;
         controller.abort();
         break;
       }
@@ -100,8 +167,13 @@ export default function ChatInput() {
         message: { ...responseMessage, content },
       });
     }
+    createOrUpdateMessage({
+      ...responseMessage,
+      content,
+    });
     dispatch({ type: ActionType.UPDATE, field: "streamingId", value: "" });
   }
+
   return (
     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-b from-[rgba(255,255,255,0)] from-[13.94%] to-[#fff] to-[54.73%] pt-10 dark:from-[rgba(53,55,64,0)] dark:to-[#353740] dark:to-[58.85%]">
       <div className="w-full max-w-4xl mx-auto flex flex-col items-center px-4 space-y-4">
@@ -144,7 +216,11 @@ export default function ChatInput() {
             icon={FiSend}
             variant="primary"
             disabled={messageText.trim() === "" || streamingId !== ""}
-            onClick={handleSend}
+            onClick={()=>{
+              handleSend()
+              publish("fetchChatList");
+            }}
+     
           />
         </div>
         <footer className="text-center text-sm text-gray-700 dark:text-gray-300 px-4 pb-6">
