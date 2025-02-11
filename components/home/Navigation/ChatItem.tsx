@@ -84,7 +84,6 @@ export default function ChatItem({ item, selected, onSelected }: Props) {
         <input
           autoFocus={true}
           className="flex-1 min-w-0 bg-transparent outline-none"
-          defaultValue={item.title || ''}
           value={title}
           onChange={(e) => {
             setTitle(e.target.value);

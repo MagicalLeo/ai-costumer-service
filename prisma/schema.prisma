@@ -22,7 +22,7 @@ model Chat {
 
 model Message {
   id         String   @id @default(uuid())
-  content    String
+  content    String   @db.LongText
   role       String
   createTime DateTime @default(now())
   chatId     String

@@ -7,7 +7,10 @@ import { useEffect, useRef, useState } from "react";
 import { useAppContext } from "@/components/AppContext";
 import { Message, MessageRequestBody } from "@/types/Chat";
 import { ActionType } from "@/reducers/AppReducers";
-import { useEventBusContext } from "@/components/EventBusContext";
+import {
+  useEventBusContext,
+  EventListener,
+} from "@/components/EventBusContext";
 
 export default function ChatInput() {
   const [messageText, setMessageText] = useState("");
@@ -15,9 +18,18 @@ export default function ChatInput() {
     state: { messageList, streamingId, selectedChat },
     dispatch,
   } = useAppContext();
-  const { publish } = useEventBusContext();
+  const { publish, subscribe, unsubscribe } = useEventBusContext();
   const stopRef = useRef(false);
   const chatIdRef = useRef("");
+
+  useEffect(() => {
+    const callback: EventListener = (data) => {
+      console.log("createNewChat{}", data);
+      handleSend(data);
+    };
+    subscribe("createNewChat", callback);
+    return () => unsubscribe("createNewChat", callback);
+  }, []);
 
   useEffect(() => {
     if (chatIdRef.current === selectedChat?.id) {
@@ -53,8 +65,8 @@ export default function ChatInput() {
       dispatch({
         type: ActionType.UPDATE,
         field: "selectedChat",
-        value: {id: chatIdRef.current},
-      })
+        value: { id: chatIdRef.current },
+      });
     }
     return data.message;
   }
@@ -76,11 +88,11 @@ export default function ChatInput() {
     return code === 0;
   }
 
-  async function handleSend() {
+  async function handleSend(content: string) {
     const message = await createOrUpdateMessage({
       id: "",
       role: "user",
-      content: messageText,
+      content,
       chatId: chatIdRef.current,
     });
     dispatch({ type: ActionType.ADD_MESSAGE, message });
@@ -114,7 +126,7 @@ export default function ChatInput() {
     const body: MessageRequestBody = { messages: message };
     setMessageText("");
     const controller = new AbortController();
-    console.log("SENDING MESSAGE...", message[message.length-1].content);
+    console.log("SENDING MESSAGE...", message[message.length - 1].content);
 
     const response = await fetch("/api/chat", {
       method: "POST",
@@ -216,11 +228,10 @@ export default function ChatInput() {
             icon={FiSend}
             variant="primary"
             disabled={messageText.trim() === "" || streamingId !== ""}
-            onClick={()=>{
-              handleSend()
+            onClick={() => {
+              handleSend(messageText);
               publish("fetchChatList");
             }}
-     
           />
         </div>
         <footer className="text-center text-sm text-gray-700 dark:text-gray-300 px-4 pb-6">
