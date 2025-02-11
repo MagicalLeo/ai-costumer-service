@@ -85,7 +85,6 @@ export default function ChatInput() {
     });
     dispatch({ type: ActionType.ADD_MESSAGE, message });
     const messages = messageList.concat([message]);
-    console.log("SENDING MESSAGE...", messageText);
     send(messages);
   }
 
@@ -115,6 +114,7 @@ export default function ChatInput() {
     const body: MessageRequestBody = { messages: message };
     setMessageText("");
     const controller = new AbortController();
+    console.log("SENDING MESSAGE...", message[message.length-1].content);
 
     const response = await fetch("/api/chat", {
       method: "POST",
