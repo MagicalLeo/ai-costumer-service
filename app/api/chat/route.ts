@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       const content = messages[messages.length - 1].content;
 
-      const response = await fetch("http://localhost:8080/backend/api/send", {
+      const response = await fetch("http://127.0.0.1:8080/backend/api/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -20,10 +20,10 @@ export async function POST(request: NextRequest) {
         console.log(response.statusText);
         return;
       } else {
-        const responseText = await response.text();
+        const responseText = JSON.parse((await response.text())).response;
         console.log(responseText)
         for (let i = 0; i < responseText.length; i++) {
-          await sleep(100);
+          await sleep(10);
           controller.enqueue(encoder.encode(responseText[i]));
         }
         controller.close();
