@@ -25,6 +25,11 @@ export default function ChatItem({ item, selected, onSelected }: Props) {
     setDeleting(false);
   }, [selected]);
 
+  useEffect(() => {
+    setTitle(item.title); // 確保在 item 更新時更新 title 狀態
+  }, [item.title]);
+
+
   async function updateChat() {
     const response = await fetch("/api/chat/update", {
       method: "POST",

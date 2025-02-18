@@ -24,13 +24,9 @@ export async function POST(request: NextRequest) {
         return;
       } else {
         const responseText = JSON.parse(await response.text())
-          .response// 移除空的 <think></think> 标签
-          .replace(/<think>\s*<\/think>/g, "")
-          // 替换非空的 <think> 标签及其内容
-          .replace(
-            /<think>([\s\S]*?)<\/think>/g,
-            '<div class="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-l-4 border-gray-300 dark:border-gray-600 p-4 my-4 italic">思考中...$1</div>'
-          );
+        .response
+        .replace(/<think>[\s\S]*?<\/think>/g, "");
+      
 
         console.log(responseText);
         for (let i = 0; i < responseText.length; i++) {

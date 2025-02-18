@@ -98,6 +98,70 @@ export default function ChatInput() {
     dispatch({ type: ActionType.ADD_MESSAGE, message });
     const messages = messageList.concat([message]);
     send(messages);
+
+    if (!selectedChat?.title || selectedChat?.title === "New Chat") {
+      updateChatTitle(messages);
+    }
+  }
+
+  async function updateChatTitle(messages: Message[]){
+    
+    const titleMessage:Message = {
+      id: "",
+      role: "user",
+      content: "使用 5 到 10 个字直接返回这句话的简要主题，不要解释、不要标点、不要语气词、不要多余文本，如果没有主题，请直接返回'新对话'",
+      chatId: chatIdRef.current
+    }
+    const chatId = chatIdRef.current;
+    const body: MessageRequestBody = { messages: [...messages,titleMessage] };
+    let response = await fetch("/api/chat/updatetitle", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    console.log(response);
+
+    if (!response.ok) {
+      console.log(response.statusText);
+      return;
+    }
+    if (!response.body) {
+      console.log("body error");
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let done = false;
+    let title = "";
+
+    while (!done) {
+      const result = await reader.read();
+      done = result.done;
+      const chunk = decoder.decode(result.value);
+      title += chunk;
+    }
+
+    response = await fetch("/api/chat/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id: chatId, title }),
+    });
+    // console.log(response);
+
+    if (!response.ok) {
+      console.log(response.statusText);
+      return;
+    }
+    const { code } = await response.json();
+    if (code === 0) {
+      publish("fetchChatList");
+    }
+
   }
 
   async function resend() {

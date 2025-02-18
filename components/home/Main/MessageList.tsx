@@ -34,6 +34,7 @@ export default function MessageList() {
         value: [],
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat]);
   return (
     <div className="w-full pt-10 pb-48 dark:text-gray-300">

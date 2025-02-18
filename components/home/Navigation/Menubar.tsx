@@ -20,7 +20,7 @@ export default function Menubar() {
           });
         }}
       >
-        新建对话
+        New Chat
       </Button>
       <Button
         icon={LuPanelLeft}

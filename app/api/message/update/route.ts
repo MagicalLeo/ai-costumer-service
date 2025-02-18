@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   if (!data.chatId) {
     const chat = await prisma.chat.create({
       data: {
-        title: "新对话",
+        title: "New Chat",
       },
     });
     data.chatId = chat.id;
