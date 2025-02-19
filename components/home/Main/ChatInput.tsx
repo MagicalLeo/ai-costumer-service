@@ -305,7 +305,7 @@ export default function ChatInput() {
             href="https://github.com/MagicalLeo"
             target="_blank"
           >
-            Powered by Leo Kao
+            Powered by Codebat
           </a>
         </footer>
       </div>
