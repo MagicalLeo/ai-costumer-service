@@ -11,7 +11,7 @@
   "dependencies": {
     "@prisma/client": "^6.3.0",
     "@tailwindcss/typography": "^0.5.16",
-    "next": "15.1.6",
+    "next": "15.2.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.4.0",
