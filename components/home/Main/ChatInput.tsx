@@ -14,6 +14,7 @@ import {
 
 export default function ChatInput() {
   const [messageText, setMessageText] = useState("");
+  const [isLoading, setIsLoading] = useState(false); // 控制整個加載狀態
   const {
     state: { messageList, streamingId, selectedChat },
     dispatch,
@@ -38,6 +39,20 @@ export default function ChatInput() {
     chatIdRef.current = selectedChat?.id ?? "";
     stopRef.current = false;
   }, [selectedChat]);
+
+  // 根據streamingId更新加載狀態
+  useEffect(() => {
+    if (streamingId !== "") {
+      setIsLoading(true);
+    } else {
+      // 當streamingId為空時，需要一個短暫的延遲才能重置狀態
+      // 這是為了防止響應完成後立即重新啟用按鈕
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [streamingId]);
 
   async function createOrUpdateMessage(message: Message) {
     const response = await fetch("/api/message/update", {
@@ -89,18 +104,31 @@ export default function ChatInput() {
   }
 
   async function handleSend(content: string) {
-    const message = await createOrUpdateMessage({
-      id: "",
-      role: "user",
-      content,
-      chatId: chatIdRef.current,
-    });
-    dispatch({ type: ActionType.ADD_MESSAGE, message });
-    const messages = messageList.concat([message]);
-    send(messages);
+    // 立即設置加載狀態，防止重複提交
+    setIsLoading(true);
+    
+    try {
+      const message = await createOrUpdateMessage({
+        id: "",
+        role: "user",
+        content,
+        chatId: chatIdRef.current,
+      });
+      
+      // Check if this is the first message in the conversation
+      const isFirstMessage = messageList.length === 0;
+      alert(messageList.length)
+      dispatch({ type: ActionType.ADD_MESSAGE, message });
+      const messages = messageList.concat([message]);
+      send(messages);
 
-    if (!selectedChat?.title || selectedChat?.title === "New Chat") {
-      updateChatTitle(messages);
+      // Only generate title on the first message
+      if (isFirstMessage) {
+        updateChatTitle(messages);
+      }
+    } catch (error) {
+      console.error("Error in handleSend:", error);
+      setIsLoading(false); // 發生錯誤時重置加載狀態
     }
   }
 
@@ -161,28 +189,42 @@ export default function ChatInput() {
     if (code === 0) {
       publish("fetchChatList");
     }
-
   }
 
   async function resend() {
-    const messages = [...messageList];
-    if (
-      messages.length !== 0 &&
-      messages[messages.length - 1].role === "assistant"
-    ) {
-      const result = await deleteMessage(messages[messages.length - 1].id);
-      if (!result) {
-        console.log("delete error");
-        return;
-      }
-      dispatch({
-        type: ActionType.REMOVE_MESSAGE,
-        message: messages[messages.length - 1],
-      });
-      messages.slice(messages.length - 1, 1);
+    // 檢查是否已經正在加載中
+    if (isLoading) {
+      console.log("Already loading, ignoring resend request");
+      return;
     }
-    console.log("RESENDING MESSAGE...", messages);
-    send(messages);
+    
+    // 立即設置加載狀態，防止重複點擊
+    setIsLoading(true);
+    
+    try {
+      const messages = [...messageList];
+      if (
+        messages.length !== 0 &&
+        messages[messages.length - 1].role === "assistant"
+      ) {
+        const result = await deleteMessage(messages[messages.length - 1].id);
+        if (!result) {
+          console.log("delete error");
+          setIsLoading(false); // 發生錯誤時，重置加載狀態
+          return;
+        }
+        dispatch({
+          type: ActionType.REMOVE_MESSAGE,
+          message: messages[messages.length - 1],
+        });
+        messages.slice(messages.length - 1, 1);
+      }
+      console.log("RESENDING MESSAGE...", messages);
+      send(messages);
+    } catch (error) {
+      console.error("Error in resend:", error);
+      setIsLoading(false); // 發生錯誤時重置加載狀態
+    }
   }
 
   async function send(message: Message[]) {
@@ -192,63 +234,84 @@ export default function ChatInput() {
     const controller = new AbortController();
     console.log("SENDING MESSAGE...", message[message.length - 1].content);
 
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-      body: JSON.stringify(body),
-    });
-    // console.log(response);
-
-    if (!response.ok) {
-      console.log(response.statusText);
-      return;
-    }
-    if (!response.body) {
-      console.log("body error");
-      return;
-    }
-
-    const responseMessage = await createOrUpdateMessage({
-      id: "",
-      role: "assistant",
-      content: "",
-      chatId: chatIdRef.current,
-    });
-    dispatch({ type: ActionType.ADD_MESSAGE, message: responseMessage });
-    dispatch({
-      type: ActionType.UPDATE,
-      field: "streamingId",
-      value: responseMessage.id,
-    });
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let done = false;
-    let content = "";
-
-    while (!done) {
-      if (stopRef.current) {
-        controller.abort();
-        break;
-      }
-      const result = await reader.read();
-      done = result.done;
-      const chunk = decoder.decode(result.value);
-      content += chunk;
-      dispatch({
-        type: ActionType.UPDATE_MESSAGE,
-        message: { ...responseMessage, content },
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify(body),
       });
+      
+      if (!response.ok) {
+        console.log(response.statusText);
+        setIsLoading(false); // 發生錯誤時，重置加載狀態
+        return;
+      }
+      if (!response.body) {
+        console.log("body error");
+        setIsLoading(false); // 發生錯誤時，重置加載狀態
+        return;
+      }
+
+      const responseMessage = await createOrUpdateMessage({
+        id: "",
+        role: "assistant",
+        content: "",
+        chatId: chatIdRef.current,
+      });
+      dispatch({ type: ActionType.ADD_MESSAGE, message: responseMessage });
+      dispatch({
+        type: ActionType.UPDATE,
+        field: "streamingId",
+        value: responseMessage.id,
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let content = "";
+
+      while (!done) {
+        if (stopRef.current) {
+          controller.abort();
+          break;
+        }
+        const result = await reader.read();
+        done = result.done;
+        const chunk = decoder.decode(result.value);
+        content += chunk;
+        dispatch({
+          type: ActionType.UPDATE_MESSAGE,
+          message: { ...responseMessage, content },
+        });
+      }
+      await createOrUpdateMessage({
+        ...responseMessage,
+        content,
+      });
+      dispatch({ type: ActionType.UPDATE, field: "streamingId", value: "" });
+      // isLoading狀態將通過useEffect中的延遲重置
+    } catch (error) {
+      console.error("Error during send operation:", error);
+      setIsLoading(false); // 發生錯誤時，確保重置加載狀態
     }
-    createOrUpdateMessage({
-      ...responseMessage,
-      content,
-    });
-    dispatch({ type: ActionType.UPDATE, field: "streamingId", value: "" });
   }
+
+  // Handle key press for Enter key to send messages
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // Prevent default behavior (new line)
+      if (messageText.trim() !== '' && !isLoading) {
+        handleSend(messageText);
+        publish("fetchChatList");
+      }
+    }
+  };
+
+  // 判斷按鈕是否應該被禁用
+  const isButtonDisabled = isLoading || streamingId !== "";
 
   return (
     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-b from-[rgba(255,255,255,0)] from-[13.94%] to-[#fff] to-[54.73%] pt-10 dark:from-[rgba(53,55,64,0)] dark:to-[#353740] dark:to-[58.85%]">
@@ -269,7 +332,8 @@ export default function ChatInput() {
             <Button
               icon={MdRefresh}
               variant="primary"
-              className="font-medium"
+              className={`font-medium ${isButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isButtonDisabled} 
               onClick={resend}
             >
               Ask Again
@@ -286,12 +350,14 @@ export default function ChatInput() {
             rows={1}
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading} 
           />
           <Button
             className="mx-3 !rounded-lg"
             icon={FiSend}
             variant="primary"
-            disabled={messageText.trim() === "" || streamingId !== ""}
+            disabled={messageText.trim() === "" || isButtonDisabled}
             onClick={() => {
               handleSend(messageText);
               publish("fetchChatList");
