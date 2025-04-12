@@ -11,7 +11,7 @@ export default function Menu() {
   return (
     <Button
       icon={LuPanelLeft}
-      className={`fixed top-2 left-2 ${displayNavigation ? "hidden" : ""}`}
+      className={`fixed top-2 left-2 z-index-1000 z-120 ${displayNavigation ? "hidden" : ""}`}
       variant="outline"
       onClick={() => {
         dispatch({

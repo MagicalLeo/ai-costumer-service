@@ -7,7 +7,7 @@ export default function Menubar() {
   const { dispatch } = useAppContext();
 
   return (
-    <div className="flex space-x-3">
+    <div className="flex space-x-3 z-100">
       <Button
         icon={HiPlus}
         variant="outline"

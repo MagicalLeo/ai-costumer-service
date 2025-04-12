@@ -1,4 +1,12 @@
+// reducers/AppReducers.tsx
 import { Chat, Message } from "@/types/Chat";
+
+// User type for authentication
+export type User = {
+  id: string;
+  username: string;
+  email: string;
+};
 
 export type State = {
   displayNavigation: boolean;
@@ -6,6 +14,9 @@ export type State = {
   messageList: Message[];
   streamingId: string;
   selectedChat?: Chat;
+  // New authentication properties
+  user: User | null;
+  isAuthenticated: boolean;
 };
 
 export enum ActionType {
@@ -13,6 +24,10 @@ export enum ActionType {
   ADD_MESSAGE = "ADD_MESSAGE",
   UPDATE_MESSAGE = "UPDATE_MESSAGE",
   REMOVE_MESSAGE = "REMOVE_MESSAGE",
+  // New authentication action types
+  SET_USER = "SET_USER",
+  LOGOUT = "LOGOUT",
+  SET_MESSAGE_LIST = "SET_MESSAGE_LIST",
 }
 
 type MessageAction = {
@@ -30,13 +45,26 @@ type UpdateAction = {
   value: any;
 };
 
-export type Action = UpdateAction | MessageAction;
+// New authentication actions
+type AuthAction = 
+  | { type: ActionType.SET_USER; payload: User }
+  | { type: ActionType.LOGOUT };
+
+type SetMessageListAction = {
+  type: ActionType.SET_MESSAGE_LIST;
+  messageList: Message[];
+};
+
+export type Action = UpdateAction | MessageAction | AuthAction | SetMessageListAction;
 
 export const initState: State = {
   displayNavigation: false,
   themeMode: "light",
   messageList: [],
   streamingId: "",
+  // Initialize new authentication properties
+  user: null,
+  isAuthenticated: false,
 };
 
 export function reducer(state: State, action: Action) {
@@ -61,6 +89,27 @@ export function reducer(state: State, action: Action) {
         (message) => message.id !== action.message.id
       );
       return { ...state, messageList };
+    }
+    // Add new case for setting message list
+    case ActionType.SET_MESSAGE_LIST: {
+      return { ...state, messageList: action.messageList };
+    }
+    // Add new cases for authentication actions
+    case ActionType.SET_USER: {
+      return {
+        ...state,
+        user: action.payload,
+        isAuthenticated: true,
+      };
+    }
+    case ActionType.LOGOUT: {
+      return {
+        ...state,
+        user: null,
+        isAuthenticated: false,
+        messageList: [],
+        selectedChat: undefined,
+      };
     }
     default:
       throw new Error();

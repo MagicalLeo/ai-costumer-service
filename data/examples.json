@@ -1,26 +1,26 @@
 [
   {
-    "act": "介紹產品功能",
-    "prompt": "請向我介紹 Aivara 智能客服的主要功能和用途。"
+    "act": "介绍产品功能",
+    "prompt": "请向我介绍 Aivara 智能客服的主要功能和用途。"
   },
   {
-    "act": "多語言支持",
+    "act": "多语言支持",
     "prompt": "Aivara，Can you assist me in English?"
   },
   {
-    "act": "提供技術支持",
-    "prompt": "Aivara，你能提供我什麽技術支持嗎？"
+    "act": "提供技术支持",
+    "prompt": "Aivara，你能提供我什么技术支持吗？"
   },
   {
-    "act": "全天候服務",
-    "prompt": "Aivara，你能24小時提供客戶服務嗎？"
+    "act": "全天候服务",
+    "prompt": "Aivara，你能24小时提供客户服务吗？"
   },
   {
-    "act": "個性化推薦",
-    "prompt": "Aivara，你能根據我的喜好推薦產品嗎？"
+    "act": "个性化推荐",
+    "prompt": "Aivara，你能根据我的喜好推荐产品吗？"
   },
   {
-    "act": "問題解答",
-    "prompt": "Aivara，什麽是智能客服系統？"
+    "act": "问题解答",
+    "prompt": "Aivara，什么是智能客服系统？"
   }
 ]

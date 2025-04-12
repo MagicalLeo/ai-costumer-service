@@ -1,3 +1,4 @@
+// components/home/Main/ChatInput.tsx
 import Button from "@/components/common/Button";
 import { MdRefresh } from "react-icons/md";
 import { PiLightningFill, PiStopBold } from "react-icons/pi";
@@ -11,17 +12,26 @@ import {
   useEventBusContext,
   EventListener,
 } from "@/components/EventBusContext";
+import { useRouter } from "next/navigation";
 
 export default function ChatInput() {
   const [messageText, setMessageText] = useState("");
   const [isLoading, setIsLoading] = useState(false); // 控制整個加載狀態
   const {
-    state: { messageList, streamingId, selectedChat },
+    state: { messageList, streamingId, selectedChat, isAuthenticated },
     dispatch,
   } = useAppContext();
   const { publish, subscribe, unsubscribe } = useEventBusContext();
   const stopRef = useRef(false);
   const chatIdRef = useRef("");
+  const router = useRouter();
+
+  // Check authentication status and redirect if not logged in
+  useEffect(() => {
+    if (!isAuthenticated && typeof window !== "undefined") {
+      router.push("/login");
+    }
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     const callback: EventListener = (data) => {
@@ -117,7 +127,6 @@ export default function ChatInput() {
       
       // Check if this is the first message in the conversation
       const isFirstMessage = messageList.length === 0;
-      alert(messageList.length)
       dispatch({ type: ActionType.ADD_MESSAGE, message });
       const messages = messageList.concat([message]);
       send(messages);
@@ -365,7 +374,7 @@ export default function ChatInput() {
           />
         </div>
         <footer className="text-center text-sm text-gray-700 dark:text-gray-300 px-4 pb-6">
-          ©️{new Date().getFullYear()}&nbsp;{" "}
+          ©️{new Date().getFullYear()}&nbsp;
           <a
             className="font-medium py-[1px] border-b border-dotted border-black/60 hover:border-black/0 dark:border-gray-200 dark:hover:border-gray-200/0 animated-underline"
             href="https://github.com/MagicalLeo"
