@@ -48,7 +48,7 @@ const authReducer = (state: AuthState, action: Action | { type: AuthActionType; 
       isAuthenticated: false,
       messageList: [],
       selectedChat: null,
-    };
+      };
   }
   
   // Delegate to the original reducer for non-auth actions

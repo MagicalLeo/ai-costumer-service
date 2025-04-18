@@ -13,7 +13,7 @@ export type State = {
   themeMode: "dark" | "light";
   messageList: Message[];
   streamingId: string;
-  selectedChat?: Chat;
+  selectedChat?: Chat | null;
   // New authentication properties
   user: User | null;
   isAuthenticated: boolean;

@@ -1,5 +1,4 @@
 // app/api/chat/route.ts
-import { sleep } from "@/common/util";
 import { MessageRequestBody } from "@/types/Chat";
 import { NextRequest } from "next/server";
 import { getUserIdFromToken } from "@/lib/auth";
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
         });
       }
       
-      if (chat.userId !== userId) {
+      if (chat.userId !== await userId) {
         return new Response(JSON.stringify({ 
           code: 1, 
           message: "Unauthorized to access this chat" 
@@ -51,45 +50,106 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Continue with existing functionality
+    // 準備流式處理
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        const context = messages.slice(0, -1).map(msg => msg.content).join("\n");
-        const content = messages[messages.length - 1].content;
-        
-        console.log("context:", context);
-        console.log("content:", content);
-        const response = await fetch("http://127.0.0.1:3001/backend/api/send", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ context, content }),
-        });
-        
-        if (!response.body) {
-          console.log(response.statusText);
-          return;
-        } else {
-          const responseText = JSON.parse(await response.text())
-            .response
-            // 移除空的 <think></think> 标签
-            .replace(/<think>\s*<\/think>/g, "")
-            // 替换非空的 <think> 标签及其内容
-            .replace(
-              /<think>([\s\S]*?)<\/think>/g,
-              '<div class="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-l-4 border-gray-300 dark:border-gray-600 p-4 my-4 italic">思考中...$1</div>'
-            );
-
-          console.log(responseText);
-          for (let i = 0; i < responseText.length; i++) {
-            await sleep(10);
-            controller.enqueue(encoder.encode(responseText[i]));
+        try {
+          const context = messages.slice(0, -1).map(msg => msg.content).join("\n");
+          const content = messages[messages.length - 1].content;
+          
+          console.log("context:", context);
+          console.log("content:", content);
+          
+          // 向後端 API 發送請求並獲取流式響應
+          const response = await fetch("http://127.0.0.1:3001/backend/api/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ context, content }),
+          });
+          
+          if (!response.ok) {
+            controller.enqueue(encoder.encode(`Error: ${response.statusText}`));
+            controller.close();
+            return;
           }
+          
+          if (!response.body) {
+            controller.enqueue(encoder.encode("Error: No response body"));
+            controller.close();
+            return;
+          }
+          
+          // 創建讀取器以處理流式響應
+          const reader = response.body.getReader();
+          let decoder = new TextDecoder();
+          let buffer = '';
+          
+          // 讀取並處理流式數據
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              // 確保處理剩餘的緩衝區
+              if (buffer.length > 0) {
+                processBuffer(buffer, controller, encoder);
+              }
+              break;
+            }
+            
+            // 將二進制數據轉換為文本
+            buffer += decoder.decode(value, { stream: true });
+            
+            // 處理 SSE 格式的數據
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || ''; // 將剩餘部分保留在緩衝區
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.substring(6)); // 移除 'data: ' 前綴
+                  
+                  if (data.chunk) {
+                    // 處理思考模式標籤
+                    let processedChunk = data.chunk
+                      .replace(/<think>\s*<\/think>/g, "")
+                      .replace(
+                        /<think>([\s\S]*?)<\/think>/g,
+                        '<div class="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-l-4 border-gray-300 dark:border-gray-600 p-4 my-4 italic">思考中...$1</div>'
+                      );
+                    
+                    controller.enqueue(encoder.encode(processedChunk));
+                  }
+                  
+                  if (data.done) {
+                    // 結束流
+                    controller.close();
+                    return;
+                  }
+                  
+                  if (data.error) {
+                    // 處理錯誤
+                    controller.enqueue(encoder.encode(`Error: ${data.error}`));
+                    controller.close();
+                    return;
+                  }
+                } catch (e) {
+                  console.error("Error parsing SSE data:", e, line);
+                }
+              }
+            }
+          }
+          
+          controller.close();
+        } catch (error) {
+          console.error("Stream processing error:", error);
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          controller.enqueue(encoder.encode(`Error: ${errorMessage}`));
           controller.close();
         }
-      },
+      }
     });
     
     return new Response(stream);
@@ -102,5 +162,41 @@ export async function POST(request: NextRequest) {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
+  }
+}
+
+// 輔助函數：處理 SSE 緩衝區
+function processBuffer(buffer: string, controller: ReadableStreamDefaultController, encoder: TextEncoder) {
+  if (!buffer || buffer.trim() === '') return;
+  
+  const lines = buffer.split('\n');
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      try {
+        const data = JSON.parse(line.substring(6)); // 移除 'data: ' 前綴
+        
+        if (data.chunk) {
+          // 處理思考模式標籤
+          // let processedChunk = data.chunk
+          //   .replace(/<think>\s*<\/think>/g, "")
+          //   .replace(
+          //     /<think>([\s\S]*?)<\/think>/g,
+          //     '<div class="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-l-4 border-gray-300 dark:border-gray-600 p-4 my-4 italic">思考中...$1</div>'
+          //   );
+          let processedChunk = data.chunk
+          if(processedChunk.includes("<think>")) {
+            console.log("包含思考模式標籤")
+          }
+          if(processedChunk.includes("<think></think>")) {
+            console.log("包含空的思考模式標籤")
+          }
+          if(processedChunk.includes("</think>")) {
+            console.log("包含結束思考模式標籤")}
+          controller.enqueue(encoder.encode(processedChunk));
+        }
+      } catch (e) {
+        console.error("Error parsing buffer data:", e, line);
+      }
+    }
   }
 }
