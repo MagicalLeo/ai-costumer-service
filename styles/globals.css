@@ -54,3 +54,57 @@ html, body {
 .animated-underline:hover {
     background-size: 0 2px, 100% 2px;
 }
+
+
+
+/* 可以添加到您的全局CSS文件中，如 globals.css */
+
+/* 思考区块的过渡效果 */
+.thinking-content {
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    overflow: hidden;
+  }
+  
+  details.thinking-block:not([open]) .thinking-content {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  
+  /* 箭头动画 */
+  details.thinking-block > summary::after {
+    transition: transform 0.3s ease;
+  }
+  
+  /* 高亮效果 */
+  details.thinking-block:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .dark details.thinking-block:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  
+  /* 思考总结栏hover效果 */
+  .thinking-summary:hover {
+    background-color: #e8edf2;
+  }
+  
+  .dark .thinking-summary:hover {
+    background-color: #353e4a;
+  }
+  
+  /* 为代码块添加特殊样式 */
+  .thinking-content pre {
+    margin: 10px 0;
+    border-radius: 6px;
+  }
+  
+  .thinking-content code {
+    font-family: monospace;
+  }
+  
+  /* 优化长文本的阅读体验 */
+  .thinking-content p {
+    margin: 8px 0;
+  }

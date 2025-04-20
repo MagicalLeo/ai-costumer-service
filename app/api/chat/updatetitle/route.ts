@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       
       console.log("context:", context);
       console.log("content:", content);
-      const response = await fetch("http://127.0.0.1:3001/backend/api/send", {
+      const response = await fetch("http://127.0.0.1:3001/backend/api/updatetitle", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

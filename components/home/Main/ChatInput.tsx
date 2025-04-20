@@ -116,7 +116,7 @@ export default function ChatInput() {
   async function handleSend(content: string) {
     // 立即設置加載狀態，防止重複提交
     setIsLoading(true);
-    
+
     try {
       const message = await createOrUpdateMessage({
         id: "",
@@ -124,7 +124,7 @@ export default function ChatInput() {
         content,
         chatId: chatIdRef.current,
       });
-      
+
       // Check if this is the first message in the conversation
       const isFirstMessage = messageList.length === 0;
       dispatch({ type: ActionType.ADD_MESSAGE, message });
@@ -141,16 +141,15 @@ export default function ChatInput() {
     }
   }
 
-  async function updateChatTitle(messages: Message[]){
-    
-    const titleMessage:Message = {
+  async function updateChatTitle(messages: Message[]) {
+    const titleMessage: Message = {
       id: "",
       role: "user",
       content: "使用 5 到 10 个字直接返回这句话的简要主题，不要解释、不要标点、不要语气词、不要多余文本，如果没有主题，请直接返回'新对话'",
       chatId: chatIdRef.current
     }
     const chatId = chatIdRef.current;
-    const body: MessageRequestBody = { messages: [...messages,titleMessage] };
+    const body: MessageRequestBody = { messages: [...messages, titleMessage] };
     let response = await fetch("/api/chat/updatetitle", {
       method: "POST",
       headers: {
@@ -173,13 +172,43 @@ export default function ChatInput() {
     const decoder = new TextDecoder();
     let done = false;
     let title = "";
+    let finalTitle = "";
 
     while (!done) {
       const result = await reader.read();
       done = result.done;
       const chunk = decoder.decode(result.value);
       title += chunk;
+
+      // 檢查是否有特殊標記表示最終處理後的標題
+      if (chunk.includes("--- 處理後標題 ---")) {
+        const parts = title.split("--- 處理後標題 ---");
+        if (parts.length > 1) {
+          finalTitle = parts[1].trim();
+        }
+      }
     }
+
+    // 如果找到了處理後標題，使用它；否則使用傳統的處理方式
+    if (finalTitle) {
+      title = finalTitle;
+    } else {
+      // 備選處理：萬一後端沒有發送處理後標題
+      title = title
+        .replace(/<[^>]*>/g, '') // 移除HTML標籤
+        .replace(/<think>[\s\S]*?<\/think>/g, '') // 移除思考標籤
+        .replace('### Response:', '') // 移除多餘的標題
+        .trim() // 移除前後空白
+        .replace(/\s+/g, ' '); // 將多個空白替換為單個空白
+
+      // 限制標題長度
+      const MAX_TITLE_LENGTH = 100;
+      if (title.length > MAX_TITLE_LENGTH) {
+        title = title.substring(0, MAX_TITLE_LENGTH);
+      }
+    }
+
+    console.log("Final title to update:", title);
 
     response = await fetch("/api/chat/update", {
       method: "POST",
@@ -188,7 +217,6 @@ export default function ChatInput() {
       },
       body: JSON.stringify({ id: chatId, title }),
     });
-    // console.log(response);
 
     if (!response.ok) {
       console.log(response.statusText);
@@ -206,10 +234,10 @@ export default function ChatInput() {
       console.log("Already loading, ignoring resend request");
       return;
     }
-    
+
     // 立即設置加載狀態，防止重複點擊
     setIsLoading(true);
-    
+
     try {
       const messages = [...messageList];
       if (
@@ -235,7 +263,7 @@ export default function ChatInput() {
       setIsLoading(false); // 發生錯誤時重置加載狀態
     }
   }
-
+  // 修改 send 函數來處理動態思考內容
   async function send(message: Message[]) {
     stopRef.current = false;
     const body: MessageRequestBody = { messages: message };
@@ -252,15 +280,15 @@ export default function ChatInput() {
         signal: controller.signal,
         body: JSON.stringify(body),
       });
-      
+
       if (!response.ok) {
         console.log(response.statusText);
-        setIsLoading(false); // 發生錯誤時，重置加載狀態
+        setIsLoading(false);
         return;
       }
       if (!response.body) {
         console.log("body error");
-        setIsLoading(false); // 發生錯誤時，重置加載狀態
+        setIsLoading(false);
         return;
       }
 
@@ -290,21 +318,26 @@ export default function ChatInput() {
         const result = await reader.read();
         done = result.done;
         const chunk = decoder.decode(result.value);
+
+        // 添加新內容到已有內容
         content += chunk;
+
+        // 更新消息內容
         dispatch({
           type: ActionType.UPDATE_MESSAGE,
           message: { ...responseMessage, content },
         });
       }
+
+      // 保存完整內容到數據庫
       await createOrUpdateMessage({
         ...responseMessage,
         content,
       });
       dispatch({ type: ActionType.UPDATE, field: "streamingId", value: "" });
-      // isLoading狀態將通過useEffect中的延遲重置
     } catch (error) {
       console.error("Error during send operation:", error);
-      setIsLoading(false); // 發生錯誤時，確保重置加載狀態
+      setIsLoading(false);
     }
   }
 
@@ -342,7 +375,7 @@ export default function ChatInput() {
               icon={MdRefresh}
               variant="primary"
               className={`font-medium ${isButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-              disabled={isButtonDisabled} 
+              disabled={isButtonDisabled}
               onClick={resend}
             >
               Ask Again
@@ -360,7 +393,7 @@ export default function ChatInput() {
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isLoading} 
+            disabled={isLoading}
           />
           <Button
             className="mx-3 !rounded-lg"
